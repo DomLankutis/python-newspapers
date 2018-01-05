@@ -1,10 +1,12 @@
+__VERSION__ = 0.1
+
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
 
-db = TinyDB('newspaper.json')
-
+db = TinyDB('people.json')
+newsdb = TinyDB('newspaper.json')
 
 class AppEntry(Frame):
 
@@ -12,6 +14,8 @@ class AppEntry(Frame):
         super().__init__(master)
         self.name = StringVar()
         self.address = StringVar()
+        self.paperName = StringVar()
+        self.paperPrice = StringVar()
         self.daynames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.weeklist = []
         for i in range(7):
@@ -27,22 +31,64 @@ class AppEntry(Frame):
             self.weeklist[i].set(False)
 
     '''
-    Creates all the widgets for the main application.
-    Such as Name label and entry and so on...
+    Create all the widgets for the main menu such as 
+    submitting data viewing data and newspaper date.
     '''
     def createwidgets(self):
-        self.topParent = Frame(self).pack(side="top")
+        self.master.geometry("{}x{}".format(360,160))
+        self.mainframe = Frame(self).pack(side="top")
 
-        self.nameLabel = Label(self.topParent, text="Full Name:").grid(row=0)
-        self.nameEntry = Entry(self.topParent, textvariable=self.name).grid(row=0, column=1)
+        Label(self.mainframe, text="Newspapers V.{}".format(__VERSION__)).pack(side='top')
+        Button(self.mainframe, text="Deliveries", command=self.deliveriesbutton).pack()
+        Button(self.mainframe, text="Newspapers", command=self.newspaperbutton).pack()
+        Button(self.mainframe, text="New Customers", command=self.ceditwindow).pack()
 
-        self.addressLabel = Label(self.topParent, text="Address:").grid(row=1)
-        self.addressEntry = Entry(self.topParent, textvariable=self.address).grid(row=1, column=1)
+    def newspaperbutton(self):
+        self.newswindow = Toplevel()
+        self.newswindow.title("Newspapers")
+        self.newswindow.focus_set()
+        self.newspaperwidgets()
 
-        self.buttonFrame = Frame(self.topParent).grid(row=3,column=1)
+    def getdata(self):
+        pass
 
-        self.submit = Button(self.buttonFrame, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
-        self.show = Button(self.buttonFrame, text="Show", command=self.showbutton).grid(row=1, column=2, padx=5)
+    def newspaperwidgets(self):
+        self.combo = Combobox(self.newswindow, values='test').grid(row=0)
+        #self.combo.bind("<<ComboboxSelected>>", self.getdata)
+
+        Label(self.newswindow, text='Paper Name: ').grid(row=0, column=2)
+        Entry(self.newswindow, textvariable=self.paperName).grid(row=0,column=3)
+
+        Label(self.newswindow, text="Price").grid(row=1, column=2)
+        Entry(self.newswindow, textvariable=self.paperPrice).grid(row=1, column=3)
+
+        for data in newsdb:
+            self.combo.insert('end', "{}".format(data["newspaper"]))
+
+
+    '''
+    Create the toplevel for the edit window
+    so that you can submit data of new address.
+    '''
+    def ceditwindow(self):
+        self.editwindow = Toplevel()
+        self.editwindow.title("Edit")
+        self.editwindow.focus_set()
+        self.editwidgets()
+
+    '''
+    Creates all the widgets for the submit application.
+    Such as Name label and entry and so on...
+    '''
+    def editwidgets(self):
+
+        self.nameLabel = Label(self.editwindow, text="Full Name:").grid(row=0)
+        self.nameEntry = Entry(self.editwindow, textvariable=self.name).grid(row=0, column=1)
+
+        self.addressLabel = Label(self.editwindow, text="Address:").grid(row=1)
+        self.addressEntry = Entry(self.editwindow, textvariable=self.address).grid(row=1, column=1)
+
+        self.submit = Button(self.editwindow, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
 
     '''
     Reads the desired field of data in the database
@@ -73,7 +119,7 @@ class AppEntry(Frame):
     Shows data that is in the database by opening a new window
     and displaying the data
     '''
-    def showbutton(self):
+    def deliveriesbutton(self):
         self.dataWindow = Toplevel()
         self.dataWindow.title("Data")
         self.dataWindow.focus_set()
