@@ -16,6 +16,9 @@ class AppEntry(Frame):
         self.address = StringVar()
         self.paperName = StringVar()
         self.paperPrice = StringVar()
+        self.satPaperPrice = StringVar()
+        self.sunPaperPrice = StringVar()
+        self.selectedcombovalue = StringVar().set("search News paper")
         self.daynames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.weeklist = []
         for i in range(7):
@@ -43,28 +46,65 @@ class AppEntry(Frame):
         Button(self.mainframe, text="Newspapers", command=self.newspaperbutton).pack()
         Button(self.mainframe, text="New Customers", command=self.ceditwindow).pack()
 
+    '''
+    Setup The Toplevel for the newspaper window
+    '''
     def newspaperbutton(self):
         self.newswindow = Toplevel()
         self.newswindow.title("Newspapers")
         self.newswindow.focus_set()
         self.newspaperwidgets()
 
-    def getdata(self):
+    '''
+    Get the data that is search for
+    Using the value recieved from the Combobox 
+    retrieve all the necessary data
+    '''
+    def getdata(self, event):
+        print(self.combobox.current())
+
+    '''
+    Push the data back to the json.
+    If the data is exist then replace using confirmation
+    otherwise simply enter new data
+    '''
+    def sendnewspaperdata(self):
+        if str(self.paperName.get().lower() )not in self.readdata('Name', True, database=newsdb):
+            newsdb.insert({'Name' : self.paperName.get(), 'Normal Price' : self.paperPrice.get(), 'Saturday Price' : self.satPaperPrice.get(), 'Sunday Price' : self.sunPaperPrice.get() })
+        else:
+            messagebox.showerror('Error', "Data already exists")
+
+    '''
+    If data already exist then delete that data using
+    confirmation otherwise state that there is nothing to
+    delete. 
+    '''
+    def deletenewspaperdata(self):
         pass
 
+    '''
+    Widgets for the newspaper window
+    all of the gui elements should be located here.
+    '''
     def newspaperwidgets(self):
-        self.combo = Combobox(self.newswindow, values='test').grid(row=0)
-        #self.combo.bind("<<ComboboxSelected>>", self.getdata)
-
         Label(self.newswindow, text='Paper Name: ').grid(row=0, column=2)
         Entry(self.newswindow, textvariable=self.paperName).grid(row=0,column=3)
 
         Label(self.newswindow, text="Price").grid(row=1, column=2)
         Entry(self.newswindow, textvariable=self.paperPrice).grid(row=1, column=3)
 
-        for data in newsdb:
-            self.combo.insert('end', "{}".format(data["newspaper"]))
+        Label(self.newswindow, text="Saturday Price").grid(row=2, column=2)
+        Entry(self.newswindow, textvariable=self.satPaperPrice).grid(row=2, column=3)
 
+        Label(self.newswindow, text="Sunday Price").grid(row=3, column=2)
+        Entry(self.newswindow, textvariable=self.sunPaperPrice).grid(row=3, column=3)
+
+        Button(self.newswindow, text="Submit", command=self.sendnewspaperdata).grid(row=4, column=3, sticky='e')
+        Button(self.newswindow, text="Delete",command=self.deletenewspaperdata).grid(row=4, column=3, sticky='w')
+
+        self.combobox = Combobox(self.newswindow, values=self.readdata('Name', True, newsdb))
+        self.combobox.grid(row=0)
+        self.combobox.bind("<<ComboboxSelected>>", self.getdata)
 
     '''
     Create the toplevel for the edit window
@@ -91,14 +131,14 @@ class AppEntry(Frame):
         self.submit = Button(self.editwindow, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
 
     '''
-    Reads the desired field of data in the database
+    Reads the desired Key of data in the database
     and then returns all the values for that desired field
     '''
-    def readdata(self, nameofdata, lower):
+    def readdata(self, nameofdata, lower, database=db):
         if lower == True:
-            return [str(data[nameofdata]).lower() for data in db.all()]
+            return [str(data[nameofdata]).lower() for data in database.all()]
         else:
-            return [data[nameofdata] for data in db.all()]
+            return [data[nameofdata] for data in database.all()]
 
     '''
     Submits data after checking it and clears the entry fields.
