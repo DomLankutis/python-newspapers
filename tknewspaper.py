@@ -1,4 +1,14 @@
-__VERSION__ = 0.1
+__VERSION__ = 0.3
+
+'''
+TO DO:
+    Update the newspaper toplevel after submit
+    Make submit ask if it wants to update if data already exists
+    Newspaper level finish delete button function
+    Newspaper level finish delete button function
+    Newspapers data communicates with the customer fields.
+    getid function and corresponding connection change to combobox and then move the get data id retrieve line in to separate function
+'''
 
 from tkinter import *
 from tkinter.ttk import *
@@ -58,11 +68,15 @@ class AppEntry(Frame):
     '''
     Get the data that is search for
     Using the value recieved from the Combobox 
-    retrieve all the necessary data
+    retrieve all the necessary data and insert it to the appropriate fields
     '''
     def getdata(self, event):
-        print(self.combobox.current())
+        data = newsdb.all()[self.combobox.current()]
 
+        self.paperName.set(data["Name"])
+        self.paperPrice.set(data["Normal Price"])
+        self.satPaperPrice.set(data["Saturday Price"])
+        self.sunPaperPrice.set(data["Sunday Price"])
     '''
     Push the data back to the json.
     If the data is exist then replace using confirmation
@@ -85,6 +99,9 @@ class AppEntry(Frame):
     '''
     Widgets for the newspaper window
     all of the gui elements should be located here.
+    When an item is selected via combo box the "getdata" function will get called
+    When "Delete" button is pressed the deletenewspaperdata function will get called
+    when "Submit" button is pressed the sendnewspaperdata function will get called
     '''
     def newspaperwidgets(self):
         Label(self.newswindow, text='Paper Name: ').grid(row=0, column=2)
