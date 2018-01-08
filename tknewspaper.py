@@ -1,13 +1,12 @@
-__VERSION__ = 0.3
+__VERSION__ = 0.4
 
 '''
 TO DO:
-    Update the newspaper toplevel after submit
-    Make submit ask if it wants to update if data already exists
-    Newspaper level finish delete button function
-    Newspaper level finish delete button function
-    Newspapers data communicates with the customer fields.
-    getid function and corresponding connection change to combobox and then move the get data id retrieve line in to separate function
+    *** Verification for data entered in the newspaper entries
+    * Fix Combobox on datawidgets
+    * Newspapers data communicates with the customer fields.
+    * getid function and corresponding connections change to combobox and then move the get data id retrieve
+      line from getdata function in to separate a function
 '''
 
 from tkinter import *
@@ -25,15 +24,22 @@ class AppEntry(Frame):
         self.name = StringVar()
         self.address = StringVar()
         self.paperName = StringVar()
-        self.paperPrice = StringVar()
-        self.satPaperPrice = StringVar()
-        self.sunPaperPrice = StringVar()
+        self.paperPrice = DoubleVar()
+        self.satPaperPrice = DoubleVar()
+        self.sunPaperPrice = DoubleVar()
         self.selectedcombovalue = StringVar().set("search News paper")
         self.daynames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.weeklist = []
         for i in range(7):
             self.weeklist.append(BooleanVar())
+        self.masterframe = Frame(self.master)
         self.createwidgets()
+
+    def clearnewsvar(self):
+        self.paperName.set("")
+        self.paperPrice.set("")
+        self.satPaperPrice.set("")
+        self.sunPaperPrice.set("")
 
     '''
     Reset the week list. This is mainly used in exception handling
@@ -44,26 +50,28 @@ class AppEntry(Frame):
             self.weeklist[i].set(False)
 
     '''
+    Clears the mainframe of the root so that we can redraw new widgets
+    this will allow the program to operate in a single screen.
+    '''
+    def clearwidgets(self):
+        self.masterframe.destroy()
+        self.masterframe = Frame(self.master)
+        self.masterframe.grid()
+
+        Button(self.masterframe, text="Back", command=self.createwidgets).grid(row=9)
+
+    '''
     Create all the widgets for the main menu such as 
     submitting data viewing data and newspaper date.
     '''
-    def createwidgets(self):
-        self.master.geometry("{}x{}".format(360,160))
-        self.mainframe = Frame(self).pack(side="top")
+    def createwidgets(self, clear=True):
+        if clear:
+            self.clearwidgets()
 
-        Label(self.mainframe, text="Newspapers V.{}".format(__VERSION__)).pack(side='top')
-        Button(self.mainframe, text="Deliveries", command=self.deliveriesbutton).pack()
-        Button(self.mainframe, text="Newspapers", command=self.newspaperbutton).pack()
-        Button(self.mainframe, text="New Customers", command=self.ceditwindow).pack()
-
-    '''
-    Setup The Toplevel for the newspaper window
-    '''
-    def newspaperbutton(self):
-        self.newswindow = Toplevel()
-        self.newswindow.title("Newspapers")
-        self.newswindow.focus_set()
-        self.newspaperwidgets()
+        Label(self.masterframe, text="Newspapers V.{}".format(__VERSION__)).grid(row=0)
+        Button(self.masterframe, text="Deliveries", command=self.datawidgets).grid(row=1)
+        Button(self.masterframe, text="Newspapers", command=self.newspaperwidgets).grid(row=2)
+        Button(self.masterframe, text="New Customers", command=self.editwidgets).grid(row=3)
 
     '''
     Get the data that is search for
@@ -77,6 +85,7 @@ class AppEntry(Frame):
         self.paperPrice.set(data["Normal Price"])
         self.satPaperPrice.set(data["Saturday Price"])
         self.sunPaperPrice.set(data["Sunday Price"])
+
     '''
     Push the data back to the json.
     If the data is exist then replace using confirmation
@@ -84,9 +93,16 @@ class AppEntry(Frame):
     '''
     def sendnewspaperdata(self):
         if str(self.paperName.get().lower() )not in self.readdata('Name', True, database=newsdb):
-            newsdb.insert({'Name' : self.paperName.get(), 'Normal Price' : self.paperPrice.get(), 'Saturday Price' : self.satPaperPrice.get(), 'Sunday Price' : self.sunPaperPrice.get() })
+            newsdb.insert({'Name' : self.paperName.get(), 'Normal Price' : self.paperPrice.get(),
+                           'Saturday Price' : self.satPaperPrice.get(), 'Sunday Price' : self.sunPaperPrice.get() })
+            self.clearnewsvar()
+            self.newspaperwidgets()
         else:
-            messagebox.showerror('Error', "Data already exists")
+            response = messagebox.askquestion('Data exists', "Data already exists, would you like it to be replaced ?")
+            if response == "yes":
+                newsdb.update({'Name': self.paperName.get(), 'Normal Price': self.paperPrice.get(),
+                               'Saturday Price': self.satPaperPrice.get(), 'Sunday Price': self.sunPaperPrice.get()},
+                                doc_ids=[self.getid()])
 
     '''
     If data already exist then delete that data using
@@ -94,7 +110,9 @@ class AppEntry(Frame):
     delete. 
     '''
     def deletenewspaperdata(self):
-        pass
+        newsdb.remove(doc_ids=[self.getid()])
+        self.clearnewsvar()
+        self.newspaperwidgets()
 
     '''
     Widgets for the newspaper window
@@ -103,49 +121,44 @@ class AppEntry(Frame):
     When "Delete" button is pressed the deletenewspaperdata function will get called
     when "Submit" button is pressed the sendnewspaperdata function will get called
     '''
-    def newspaperwidgets(self):
-        Label(self.newswindow, text='Paper Name: ').grid(row=0, column=2)
-        Entry(self.newswindow, textvariable=self.paperName).grid(row=0,column=3)
+    def newspaperwidgets(self, clear=True):
+        if clear:
+            self.clearwidgets()
 
-        Label(self.newswindow, text="Price").grid(row=1, column=2)
-        Entry(self.newswindow, textvariable=self.paperPrice).grid(row=1, column=3)
+        Label(self.masterframe, text='Paper Name: ').grid(row=0, column=2)
+        Entry(self.masterframe, textvariable=self.paperName).grid(row=0,column=3)
 
-        Label(self.newswindow, text="Saturday Price").grid(row=2, column=2)
-        Entry(self.newswindow, textvariable=self.satPaperPrice).grid(row=2, column=3)
+        Label(self.masterframe, text="Price").grid(row=1, column=2)
+        Entry(self.masterframe, textvariable=self.paperPrice).grid(row=1, column=3)
 
-        Label(self.newswindow, text="Sunday Price").grid(row=3, column=2)
-        Entry(self.newswindow, textvariable=self.sunPaperPrice).grid(row=3, column=3)
+        Label(self.masterframe, text="Saturday Price").grid(row=2, column=2)
+        Entry(self.masterframe, textvariable=self.satPaperPrice).grid(row=2, column=3)
 
-        Button(self.newswindow, text="Submit", command=self.sendnewspaperdata).grid(row=4, column=3, sticky='e')
-        Button(self.newswindow, text="Delete",command=self.deletenewspaperdata).grid(row=4, column=3, sticky='w')
+        Label(self.masterframe, text="Sunday Price").grid(row=3, column=2)
+        Entry(self.masterframe, textvariable=self.sunPaperPrice).grid(row=3, column=3)
 
-        self.combobox = Combobox(self.newswindow, values=self.readdata('Name', True, newsdb))
+        Button(self.masterframe, text="Submit", command=self.sendnewspaperdata).grid(row=4, column=3, sticky='e')
+        Button(self.masterframe, text="Delete",command=self.deletenewspaperdata).grid(row=4, column=3, sticky='w')
+
+        self.combobox = Combobox(self.masterframe, values=self.readdata('Name', True, newsdb))
         self.combobox.grid(row=0)
         self.combobox.bind("<<ComboboxSelected>>", self.getdata)
-
-    '''
-    Create the toplevel for the edit window
-    so that you can submit data of new address.
-    '''
-    def ceditwindow(self):
-        self.editwindow = Toplevel()
-        self.editwindow.title("Edit")
-        self.editwindow.focus_set()
-        self.editwidgets()
 
     '''
     Creates all the widgets for the submit application.
     Such as Name label and entry and so on...
     '''
-    def editwidgets(self):
+    def editwidgets(self, clear=True):
+        if clear:
+            self.clearwidgets()
 
-        self.nameLabel = Label(self.editwindow, text="Full Name:").grid(row=0)
-        self.nameEntry = Entry(self.editwindow, textvariable=self.name).grid(row=0, column=1)
+        self.nameLabel = Label(self.masterframe, text="Full Name:").grid(row=0)
+        self.nameEntry = Entry(self.masterframe, textvariable=self.name).grid(row=0, column=1)
 
-        self.addressLabel = Label(self.editwindow, text="Address:").grid(row=1)
-        self.addressEntry = Entry(self.editwindow, textvariable=self.address).grid(row=1, column=1)
+        self.addressLabel = Label(self.masterframe, text="Address:").grid(row=1)
+        self.addressEntry = Entry(self.masterframe, textvariable=self.address).grid(row=1, column=1)
 
-        self.submit = Button(self.editwindow, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
+        self.submit = Button(self.masterframe, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
 
     '''
     Reads the desired Key of data in the database
@@ -166,35 +179,25 @@ class AppEntry(Frame):
         if self.name.get() != '' and self.address.get() != '':
             if str(self.name.get()).lower() not in self.readdata('Name', True) or str(self.address.get()).lower() not in self.readdata('Address', True):
                 db.insert({"Name": self.name.get(), "Address": self.address.get()})
-                self.updatedatawindow()
+                self.editwidgets()
                 self.name.set('')
                 self.address.set('')
             else:
                 messagebox.showerror("Error", "Data already in the database")
 
     '''
-    Shows data that is in the database by opening a new window
-    and displaying the data
-    '''
-    def deliveriesbutton(self):
-        self.dataWindow = Toplevel()
-        self.dataWindow.title("Data")
-        self.dataWindow.focus_set()
-        self.datawidgets()
-
-    '''
     Creates the widgets for the dataWindow 
     '''
-    def datawidgets(self):
-        self.datalist = Listbox(self.dataWindow)
-        self.datalist.bind("<<ListboxSelect>>", self.getid)
-        self.datalist.grid(row=0)
+    def datawidgets(self, clear=True):
+        if clear:
+            self.clearwidgets()
 
-        Button(self.dataWindow, text="Submit", command=self.datasubmit).grid(row=0, column=7, sticky='s')
-        Button(self.dataWindow, text="Delete", command=self.datadelete).grid(row=0, column=4, columnspan=3, sticky='se')
+        self.combobox = Combobox(self.masterframe, values=self.readdata("Address", False))
+        self.combobox.bind("<<ComboboxSelected>>", self.getidalt)
+        self.combobox.grid(row=0)
 
-        for data in db.all():
-            self.datalist.insert('end', "{}. {}, {}".format(data.doc_id, data['Address'], data['Name']))
+        Button(self.masterframe, text="Submit", command=self.datasubmit).grid(row=0, column=7, sticky='s')
+        Button(self.masterframe, text="Delete", command=self.datadelete).grid(row=0, column=4, columnspan=3, sticky='se')
 
     '''
     Gets the ID of the selected field by using regex and then
@@ -202,20 +205,11 @@ class AppEntry(Frame):
     that will need it. The variable stays the same until a new field
     is selected
     '''
-    def getid(self, event):
-        self.dataid = int(re.compile('.*(?=\.)').search(self.datalist.get(self.datalist.curselection())).group(0))
-        self.updatedata()
+    def getid(self):
+        return newsdb.all()[self.combobox.current()].doc_id
 
-    '''
-    Check if the window is open and update the window if it is
-    otherwise do nothing and let the program operate as usual
-    '''
-    def updatedatawindow(self):
-        try:
-            if self.dataWindow.state() == 'normal':
-                self.datawidgets()
-        except Exception:
-            pass
+    def getidalt(self, event):
+        self.getid()
 
     '''
     Update the list by checking the json file and retrieving 
@@ -257,7 +251,7 @@ class AppEntry(Frame):
     def datadelete(self):
         if messagebox.askyesno("Confirmation", "Are you sure you want to delete {} record ?".format(self.userdata['Name'])):
             db.remove(doc_ids=[self.dataid])
-        self.datawidgets()
+        self.datawidgets(clear=False)
 
 
 root = Tk()
