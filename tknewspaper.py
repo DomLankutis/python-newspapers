@@ -2,17 +2,16 @@ __VERSION__ = 0.8
 
 '''
 TO DO:
-    *** Verification for data entered in the newspaper entries
     *** API ONLINE JSON FILES
-    * How long have they paid for.
     * Do final calculations and display them.
-    * Use Label frames to layout the Frames nicely
+    * Total can go - or + (Credit)
 '''
 
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
+import datetime
 
 db = TinyDB('people.json')
 newsdb = TinyDB('newspaper.json')
@@ -28,7 +27,12 @@ class AppEntry(Frame):
         self.paperPrice = DoubleVar()
         self.satPaperPrice = DoubleVar()
         self.sunPaperPrice = DoubleVar()
+        self.paydays = IntVar()
+        self.paydays.set(0)
+        self.totalprice = 0.0
+        self.datedifference = 0.0
         self.newsname = ""
+        self.comboname = ""
         self.daynames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.weeklist = []
         for i in range(7):
@@ -120,9 +124,12 @@ class AppEntry(Frame):
     delete. 
     '''
     def deletenewspaperdata(self):
-        newsdb.remove(doc_ids=[self.getid(self.combobox)])
-        self.clearnewsvar()
-        self.newspaperwidgets()
+        if messagebox.askyesno("Confirmation", "Are you sure you want to delete '{}' data".format(newsdb.get(doc_id=self.getid(self.combobox))["Name"])):
+            newsdb.remove(doc_ids=[self.getid(self.combobox)])
+            self.clearnewsvar()
+            self.newspaperwidgets()
+        else:
+            pass
 
     '''
     Widgets for the newspaper window
@@ -236,26 +243,29 @@ class AppEntry(Frame):
 
         self.combobox = Combobox(labelframe, values=self.readdata("Address", False))
         self.combobox.bind("<<ComboboxSelected>>", self.updatedata)
+        self.combobox.set(self.comboname)
         self.combobox.grid(row=1, column=1, sticky="w")
 
         labelframe.grid(row=0, padx=5, ipadx=2, ipady=2)
 
         labelframe = LabelFrame(self.masterframe, text="Total")
 
-        Label(labelframe, text="{}".format("x.xx")).grid(row=0)
+        Label(labelframe, text=self.totalprice).grid(row=0)
 
-        labelframe.grid(row=1, column=0, columnspan=2)
+        labelframe.grid(row=1, column=0, padx=10, sticky="w")
 
-        labelframe = LabelFrame(self.masterframe, text="Paid for")
+        labelframe = LabelFrame(self.masterframe, text="Pay Due in")
 
-        self.spinbox = Spinbox(labelframe, from_=0, to=999, width=5).grid(row=0)
+        Label(labelframe, text=self.datedifference).grid(row=0)
 
         labelframe.grid(row=1, column=0)
 
+
         labelframe = LabelFrame(self.masterframe, text="Buttons")
 
-        Button(labelframe, text="Submit", command=self.datasubmit).grid(row=9, column=7, sticky='s')
-        Button(labelframe, text="Delete", command=self.datadelete).grid(row=9, column=4, columnspan=3, sticky='se')
+        Button(labelframe, text="Submit", command=self.datasubmit).grid(row=0, column=7, sticky='s')
+        Button(labelframe, text="Delete", command=self.datadelete).grid(row=0, column=4, columnspan=3, sticky='se')
+        Button(labelframe, text="Pay", command=self.paybillwidgets).grid(row=0, column=8, columnspan=3)
 
         labelframe.grid(row=1, column=1)
 
@@ -301,7 +311,11 @@ class AppEntry(Frame):
     getting their id and corresponding week values
     '''
     def updatedata(self, event):
+        self.comboname = self.combobox.get()
+        self.datedifference = str(self.countdatediff(self.getdate(outscope=True)))[:10]
         self.userdata = db.get(doc_id=self.getid(self.combobox, database=db))
+
+        self.calculateprice()
 
         if self.newscombo.get() == "":
             messagebox.showerror("Error", "No newspaper Selected")
@@ -311,9 +325,78 @@ class AppEntry(Frame):
             labelframe = LabelFrame(self.masterframe, text="Days")
             for i in range(len(self.weeklist)):
                 Checkbutton(labelframe, text=i + 1, variable=self.weeklist[i], onvalue=True,
-                            offvalue=False).grid(row=0, column=i, sticky='nw')
+                          offvalue=False).grid(row=0, column=i, sticky='nw')
             labelframe.grid(row=0, column=1, padx=10)
             self.datawidgets(clear=False)
+
+    def calculateprice(self):
+        pass
+
+    '''
+    Gets a date from the json file. Depending if "outscope" is false or true
+    it will give you the paid on date or the paid till date
+    default value for outscope is false
+    '''
+    def getdate(self, outscope=False):
+        if not outscope:
+            try:
+                return(datetime.datetime.strptime(self.paydata["PaidTill"], "%Y-%m-%d"))
+            except KeyError:
+                return None
+        else:
+            try:
+                return(datetime.datetime.strptime(db.get(doc_id=self.getid(self.combobox, database=db))["PaidOn"], "%Y-%m-%d"))
+            except KeyError:
+                return None
+
+    '''
+    Generates the necissary widgets for the pay bill window
+    uses labelframe to order eveyrything in a neat order
+    '''
+    def paybillwidgets(self, clear=True):
+        self.paydata = db.get(doc_id=self.getid(self.combobox, database=db))
+        if clear:
+            self.clearwidgets()
+
+        labelframe = LabelFrame(self.masterframe, text="Data")
+
+        Label(labelframe, text="Pay for").grid(row=0, column=0)
+        Entry(labelframe, width=5, textvariable=self.paydays).grid(row=0, column=1)
+        Label(labelframe, text="Days").grid(row=0, column=2)
+
+        labelframe.grid(row=0, padx=5, pady=5)
+
+        labelframe = LabelFrame(self.masterframe, text="Button")
+
+        Button(labelframe, text="Submit", command=self.paybuttonsubmit).grid(row=0)
+
+        labelframe.grid(row=0, column=1)
+
+    '''
+    Calculates the date difference and returns date
+    in the following format: YEAR-MONTH-DAY
+    '''
+    def countdatediff(self, date):
+        paytill = str(date + datetime.timedelta(days=int(self.paydays.get())))
+        return datetime.datetime.strptime(paytill[:10], "%Y-%m-%d")
+
+    '''
+    Submit the date stamps to the appropriate user.
+    PaidOn key shows when the person has last payed
+    PaidTill key show when the next payment is due
+    if you pay before PaidTill expires you will add ontop of the paid till
+    if you are late then you will be paying back for the days missed.
+    '''
+    def paybuttonsubmit(self):
+
+        if not self.getdate():
+            date = datetime.date.today()
+            ndate = str(self.countdatediff(date))
+            db.update({"PaidOn": str(date)[:10], "PaidTill": ndate[:10]}, doc_ids=[self.paydata.doc_id])
+        else:
+            date = self.getdate()
+            ndate = str(self.countdatediff(date))
+            db.update({"PaidOn": str(date)[:10], "PaidTill": ndate[:10]}, doc_ids=[self.paydata.doc_id])
 
     '''
     Submits the week data to the json file so that it can be stored 
