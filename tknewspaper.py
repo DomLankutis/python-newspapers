@@ -1,4 +1,4 @@
-__VERSION__ = 0.7
+__VERSION__ = 0.8
 
 '''
 TO DO:
@@ -6,6 +6,7 @@ TO DO:
     *** API ONLINE JSON FILES
     * How long have they paid for.
     * Do final calculations and display them.
+    * Use Label frames to layout the Frames nicely
 '''
 
 from tkinter import *
@@ -73,9 +74,14 @@ class AppEntry(Frame):
             self.clearwidgets(back=False)
 
         Label(self.masterframe, text="Newspapers V.{}".format(__VERSION__)).grid(row=0)
-        Button(self.masterframe, text="Deliveries", command=self.datawidgets).grid(row=1)
-        Button(self.masterframe, text="Newspapers", command=self.newspaperwidgets).grid(row=2)
-        Button(self.masterframe, text="New Customers", command=self.editwidgets).grid(row=3)
+
+        labelframe = LabelFrame(self.masterframe, text="Options")
+
+        Button(labelframe, text="Deliveries", command=self.datawidgets).grid(row=1, columnspan=2, sticky="n")
+        Button(labelframe, text="Newspapers", command=self.newspaperwidgets).grid(row=2, columnspan=2)
+        Button(labelframe, text="New Customers", command=self.editwidgets).grid(row=3, columnspan=2)
+
+        labelframe.grid(row=1, ipadx=5, ipady=5, padx=10, columnspan=2)
 
     '''
     Get the data that is search for
@@ -129,24 +135,35 @@ class AppEntry(Frame):
         if clear:
             self.clearwidgets()
 
-        Label(self.masterframe, text='Paper Name: ').grid(row=0, column=2)
-        Entry(self.masterframe, textvariable=self.paperName).grid(row=0,column=3)
+        labelframe = LabelFrame(self.masterframe, text="Data")
 
-        Label(self.masterframe, text="Price").grid(row=1, column=2)
-        Entry(self.masterframe, textvariable=self.paperPrice).grid(row=1, column=3)
+        Label(labelframe, text='Paper Name: ').grid(row=0, column=2, sticky="w")
+        Entry(labelframe, textvariable=self.paperName).grid(row=0,column=3)
 
-        Label(self.masterframe, text="Saturday Price").grid(row=2, column=2)
-        Entry(self.masterframe, textvariable=self.satPaperPrice).grid(row=2, column=3)
+        Label(labelframe, text="Price").grid(row=1, column=2, sticky="w")
+        Entry(labelframe, textvariable=self.paperPrice).grid(row=1, column=3)
 
-        Label(self.masterframe, text="Sunday Price").grid(row=3, column=2)
-        Entry(self.masterframe, textvariable=self.sunPaperPrice).grid(row=3, column=3)
+        Label(labelframe, text="Saturday Price").grid(row=2, column=2, sticky="w")
+        Entry(labelframe, textvariable=self.satPaperPrice).grid(row=2, column=3)
 
-        Button(self.masterframe, text="Submit", command=self.sendnewspaperdata).grid(row=4, column=3, sticky='e')
-        Button(self.masterframe, text="Delete",command=self.deletenewspaperdata).grid(row=4, column=3, sticky='w')
+        Label(labelframe, text="Sunday Price").grid(row=3, column=2, sticky="w")
+        Entry(labelframe, textvariable=self.sunPaperPrice).grid(row=3, column=3)
 
-        self.combobox = Combobox(self.masterframe, values=self.readdata('Name', False, newsdb))
+        labelframe.grid(row=0, column=1, ipady=3)
+
+        labelframe = LabelFrame(self.masterframe, text="Buttons")
+
+        Button(labelframe, text="Submit", command=self.sendnewspaperdata).grid(row=4, column=3, sticky='e')
+        Button(labelframe, text="Delete",command=self.deletenewspaperdata).grid(row=4, column=4, sticky='w')
+        labelframe.grid(row=1,column=1, sticky="e")
+        
+        labelframe = LabelFrame(self.masterframe, text="Newspaper")
+
+        self.combobox = Combobox(labelframe, values=self.readdata('Name', False, newsdb))
         self.combobox.grid(row=0)
         self.combobox.bind("<<ComboboxSelected>>", self.getdata)
+
+        labelframe.grid(row=0, padx=5, ipady=3, sticky="n")
 
     '''
     Creates all the widgets for the submit application.
@@ -156,13 +173,21 @@ class AppEntry(Frame):
         if clear:
             self.clearwidgets()
 
-        self.nameLabel = Label(self.masterframe, text="Full Name:").grid(row=0)
-        self.nameEntry = Entry(self.masterframe, textvariable=self.name).grid(row=0, column=1)
+        labelframe = LabelFrame(self.masterframe, text="Data")
 
-        self.addressLabel = Label(self.masterframe, text="Address:").grid(row=1)
-        self.addressEntry = Entry(self.masterframe, textvariable=self.address).grid(row=1, column=1)
+        self.nameLabel = Label(labelframe, text="Full Name:").grid(row=0)
+        self.nameEntry = Entry(labelframe, textvariable=self.name).grid(row=0, column=1)
 
-        self.submit = Button(self.masterframe, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
+        self.addressLabel = Label(labelframe, text="Address:").grid(row=1)
+        self.addressEntry = Entry(labelframe, textvariable=self.address).grid(row=1, column=1)
+
+        labelframe.grid(row=0)
+
+        labelframe = LabelFrame(self.masterframe, text="Button")
+
+        self.submit = Button(labelframe, text="Submit", command=self.submitbutton).grid(row=0, column=2, padx=5)
+
+        labelframe.grid(row=0, column=1, padx=3, sticky="n")
 
     '''
     Reads the desired Key of data in the database
@@ -190,25 +215,49 @@ class AppEntry(Frame):
                 messagebox.showerror("Error", "Data already in the database")
 
     '''
-    Creates the widgets for the deliveries 
+    Creates the widgets for the deliveries.
+    Using Label frames to create a neat layout which should look
+    similar on all platforms.
     '''
     def datawidgets(self, clear=True):
         if clear:
             self.clearwidgets()
 
-        self.newscombo = Combobox(self.masterframe, values=self.readdata("Name", True, database=newsdb))
+        labelframe = LabelFrame(self.masterframe)
+
+        Label(labelframe, text="Paper").grid(row=0)
+
+        self.newscombo = Combobox(labelframe, values=self.readdata("Name", True, database=newsdb))
         self.newscombo.bind("<<ComboboxSelected>>", self.setnewsname)
         self.newscombo.set(self.newsname)
-        Label(self.masterframe, text="Paper").grid(row=0)
         self.newscombo.grid(row=0, column=1, sticky="w")
 
-        self.combobox = Combobox(self.masterframe, values=self.readdata("Address", False))
+        Label(labelframe, text="Address").grid(row=1)
+
+        self.combobox = Combobox(labelframe, values=self.readdata("Address", False))
         self.combobox.bind("<<ComboboxSelected>>", self.updatedata)
-        Label(self.masterframe, text="Address").grid(row=1)
         self.combobox.grid(row=1, column=1, sticky="w")
 
-        Button(self.masterframe, text="Submit", command=self.datasubmit).grid(row=9, column=7, sticky='s')
-        Button(self.masterframe, text="Delete", command=self.datadelete).grid(row=9, column=4, columnspan=3, sticky='se')
+        labelframe.grid(row=0, padx=5, ipadx=2, ipady=2)
+
+        labelframe = LabelFrame(self.masterframe, text="Total")
+
+        Label(labelframe, text="{}".format("x.xx")).grid(row=0)
+
+        labelframe.grid(row=1, column=0, columnspan=2)
+
+        labelframe = LabelFrame(self.masterframe, text="Paid for")
+
+        self.spinbox = Spinbox(labelframe, from_=0, to=999, width=5).grid(row=0)
+
+        labelframe.grid(row=1, column=0)
+
+        labelframe = LabelFrame(self.masterframe, text="Buttons")
+
+        Button(labelframe, text="Submit", command=self.datasubmit).grid(row=9, column=7, sticky='s')
+        Button(labelframe, text="Delete", command=self.datadelete).grid(row=9, column=4, columnspan=3, sticky='se')
+
+        labelframe.grid(row=1, column=1)
 
     '''
     Sets a global variable of a newspaper name which is selected.
@@ -253,14 +302,17 @@ class AppEntry(Frame):
     '''
     def updatedata(self, event):
         self.userdata = db.get(doc_id=self.getid(self.combobox, database=db))
+
         if self.newscombo.get() == "":
             messagebox.showerror("Error", "No newspaper Selected")
+
         else:
             self.updateweeklist()
+            labelframe = LabelFrame(self.masterframe, text="Days")
             for i in range(len(self.weeklist)):
-                Checkbutton(self.masterframe, text=i + 1, variable=self.weeklist[i], onvalue=True,
-                            offvalue=False).grid(row=0, column=i + 2, sticky='nw')
-
+                Checkbutton(labelframe, text=i + 1, variable=self.weeklist[i], onvalue=True,
+                            offvalue=False).grid(row=0, column=i, sticky='nw')
+            labelframe.grid(row=0, column=1, padx=10)
             self.datawidgets(clear=False)
 
     '''
