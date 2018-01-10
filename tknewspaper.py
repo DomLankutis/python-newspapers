@@ -1,20 +1,75 @@
-__VERSION__ = 0.8
+__VERSION__ = 1.0
 
-'''
-TO DO:
-    *** API ONLINE JSON FILES
-    * Do final calculations and display them.
-    * Total can go - or + (Credit)
-'''
 
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
-import datetime
+from simplecrypt import encrypt, decrypt
+from sys import stdin
+import datetime, os,getpass
 
-db = TinyDB('people.json')
-newsdb = TinyDB('newspaper.json')
+'''
+Read the encrypted data by decrypting the data
+then writing the plain text onto the original file
+this will let TinyDB to read the files
+'''
+def readencrypted(password, filename):
+    print("Unlocking files")
+    with open(filename, 'rb') as input:
+        global plaintext
+        ciphertext = input.read()
+        plaintext = decrypt(password, ciphertext)
+        plaintext = plaintext.decode('utf8')
+    with open(filename, 'w') as file:
+        file.write(plaintext)
+
+'''
+Read the plaintext file and encrypt the text
+after which we store the encrypted text back in to the file
+This will keep the data secured when not in use.
+'''
+def writeencrypted(password, filename):
+    print("Locking files")
+    global plaintext
+    with open(filename, 'r') as text:
+        plaintext = text.read()
+    with open(filename, 'wb') as output:
+        ciphertext = encrypt(password, plaintext)
+        output.write(ciphertext)
+
+'''
+If the root (Window) is closing prompts the user
+to wait a bit, as the program encrypts the files
+after which you are prompted with success and the root is destroyed
+'''
+def onquit():
+    messagebox.showinfo("Info", "Stay put Saving data")
+    writeencrypted(password, "people.json")
+    writeencrypted(password, "newspaper.json")
+    messagebox.showinfo("Info","Saving Complete")
+    root.destroy()
+
+
+global db, newsdb
+FILES = ["people.json", "newspaper.json"]
+password = getpass.getpass("Password: ")
+
+for file in FILES:
+    if os.path.exists(file):
+        try:
+            readencrypted(password, file)
+        except:
+            db = TinyDB("people.json")
+            newsdb = TinyDB("newspaper.json")
+    else:
+        open(file, 'w+')
+        writeencrypted(password, file)
+        readencrypted(password, file)
+
+db = TinyDB("people.json")
+newsdb = TinyDB("newspaper.json")
+
 
 class AppEntry(Frame):
 
@@ -39,6 +94,7 @@ class AppEntry(Frame):
             self.weeklist.append(BooleanVar())
         self.masterframe = Frame(self.master)
         self.createwidgets()
+        root.focus_set()
 
     '''
     Clears all the values in the newspaper section Entries
@@ -269,6 +325,7 @@ class AppEntry(Frame):
 
         labelframe.grid(row=1, column=1)
 
+
     '''
     Sets a global variable of a newspaper name which is selected.
     '''
@@ -312,7 +369,7 @@ class AppEntry(Frame):
     '''
     def updatedata(self, event):
         self.comboname = self.combobox.get()
-        self.datedifference = str(self.countdatediff(self.getdate(outscope=True)))[:10]
+        self.datedifference = str(self.getdate(outscope=True, key="PaidTill"))[:10]
         self.userdata = db.get(doc_id=self.getid(self.combobox, database=db))
 
         self.calculateprice()
@@ -329,15 +386,49 @@ class AppEntry(Frame):
             labelframe.grid(row=0, column=1, padx=10)
             self.datawidgets(clear=False)
 
+    '''
+    Calculates the Price that is either in credit or is due
+    for the currently selected user.
+    '''
     def calculateprice(self):
-        pass
+        try:
+            credit = False
+            totalprice = 0
+            diff = self.getdate(outscope=True, key="PaidTill") - datetime.datetime.today()
+            data = db.get(doc_id=self.getid(self.combobox, database=db))
+            newspapernames = self.readdata("Name", False, database=newsdb)
+
+            if diff.days >= 0:
+                credit = True
+
+            diff = abs(diff.days)
+            for newsname in newspapernames:
+                for i in range(diff + 1):
+                    dayname = self.daynames[(i + datetime.datetime.today().weekday()) % 7]
+                    try:
+                        if data[newsname.lower() + dayname]:
+                            if dayname == "Saturday":
+                                totalprice += float(newsdb.get(where("Name") == newsname)["Saturday Price"])
+                            elif dayname == "Sunday":
+                                totalprice += float(newsdb.get(where("Name") == newsname)["Sunday Price"])
+                            else:
+                                totalprice += float(newsdb.get(where("Name") == newsname)["Normal Price"])
+                    except Exception:
+                        pass
+            if credit:
+                self.totalprice = totalprice
+            else:
+                self.totalprice = -totalprice
+
+        except Exception:
+            self.totalprice = 0
 
     '''
     Gets a date from the json file. Depending if "outscope" is false or true
     it will give you the paid on date or the paid till date
     default value for outscope is false
     '''
-    def getdate(self, outscope=False):
+    def getdate(self, outscope=False, key="PaidOn"):
         if not outscope:
             try:
                 return(datetime.datetime.strptime(self.paydata["PaidTill"], "%Y-%m-%d"))
@@ -345,7 +436,7 @@ class AppEntry(Frame):
                 return None
         else:
             try:
-                return(datetime.datetime.strptime(db.get(doc_id=self.getid(self.combobox, database=db))["PaidOn"], "%Y-%m-%d"))
+                return(datetime.datetime.strptime(db.get(doc_id=self.getid(self.combobox, database=db))[key], "%Y-%m-%d"))
             except KeyError:
                 return None
 
@@ -398,6 +489,10 @@ class AppEntry(Frame):
             ndate = str(self.countdatediff(date))
             db.update({"PaidOn": str(date)[:10], "PaidTill": ndate[:10]}, doc_ids=[self.paydata.doc_id])
 
+        messagebox.showinfo("Success", "Data has been updated")
+        self.datawidgets()
+        self.updatedata(None)
+
     '''
     Submits the week data to the json file so that it can be stored 
     permanently for that user
@@ -419,5 +514,6 @@ class AppEntry(Frame):
 
 root = Tk()
 app = AppEntry(master=root)
-
+root.protocol("WM_DELETE_WINDOW", onquit)
 app.mainloop()
+
