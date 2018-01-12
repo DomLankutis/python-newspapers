@@ -93,13 +93,14 @@ class AppEntry(Frame):
 
     def __init__(self, master=None):
         super().__init__(master)
-        self.paidfor = IntVar()
         self.name = StringVar()
         self.address = StringVar()
         self.paperName = StringVar()
         self.paperPrice = DoubleVar()
         self.satPaperPrice = DoubleVar()
         self.sunPaperPrice = DoubleVar()
+        self.deliveryprice = DoubleVar()
+        self.paidfor = IntVar()
         self.paydays = IntVar()
         self.paydays.set(0)
         self.totalprice = 0.0
@@ -162,8 +163,8 @@ class AppEntry(Frame):
         labelframe.grid(row=1, ipadx=5, ipady=5, padx=10, columnspan=2)
 
     '''
-    Get the data that is search for
-    Using the value recieved from the Combobox 
+    Get the data that is searched for
+    Using the value received from the Combobox 
     retrieve all the necessary data and insert it to the appropriate fields
     '''
     def getdata(self, event):
@@ -256,11 +257,14 @@ class AppEntry(Frame):
 
         labelframe = LabelFrame(self.masterframe, text="Data")
 
-        self.nameLabel = Label(labelframe, text="Full Name:").grid(row=0)
-        self.nameEntry = Entry(labelframe, textvariable=self.name).grid(row=0, column=1)
+        Label(labelframe, text="Full Name:").grid(row=0)
+        Entry(labelframe, textvariable=self.name).grid(row=0, column=1)
 
-        self.addressLabel = Label(labelframe, text="Address:").grid(row=1)
-        self.addressEntry = Entry(labelframe, textvariable=self.address).grid(row=1, column=1)
+        Label(labelframe, text="Address:").grid(row=1)
+        Entry(labelframe, textvariable=self.address).grid(row=1, column=1)
+
+        Label(labelframe, text="Delivery:").grid(row=2)
+        Entry(labelframe, textvariable=self.deliveryprice).grid(row=2, column=1)
 
         labelframe.grid(row=0)
 
@@ -286,12 +290,13 @@ class AppEntry(Frame):
     if the entry fields are not empty
     '''
     def submitbutton(self):
-        if self.name.get() != '' and self.address.get() != '':
+        if self.name.get() != '' and self.address.get() != '' and self.deliveryprice.get() != '':
             if str(self.name.get()).lower() not in self.readdata('Name', True) or str(self.address.get()).lower() not in self.readdata('Address', True):
-                db.insert({"Name": self.name.get(), "Address": self.address.get()})
+                db.insert({"Name": self.name.get(), "Address": self.address.get(), "Delivery Charge": self.deliveryprice.get()})
                 self.editwidgets()
                 self.name.set('')
                 self.address.set('')
+                self.deliveryprice.set('')
             else:
                 messagebox.showerror("Error", "Data already in the database")
 
@@ -405,6 +410,12 @@ class AppEntry(Frame):
             self.datawidgets(clear=False)
 
     '''
+    Returns the delivery charge of the specific user.
+    '''
+    def deliverycharge(self):
+        return float(db.all()[self.combobox.current()]["Delivery Charge"])
+
+    '''
     Calculates the Price that is either in credit or is due
     for the currently selected user.
     '''
@@ -423,6 +434,16 @@ class AppEntry(Frame):
             for newsname in newspapernames:
                 for i in range(diff + 1):
                     dayname = self.daynames[(i + datetime.datetime.today().weekday()) % 7]
+
+                    if i == 0:
+                        try:
+                            totalprice += self.deliverycharge()
+                        except: pass
+                    elif dayname == "Monday":
+                        try:
+                            totalprice += self.deliverycharge()
+                        except: pass
+
                     try:
                         if data[newsname.lower() + dayname]:
                             if dayname == "Saturday":
