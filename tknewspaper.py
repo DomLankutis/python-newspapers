@@ -6,7 +6,6 @@ from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
 from simplecrypt import encrypt, decrypt
-from sys import stdin
 import datetime, os,getpass
 
 '''
@@ -306,7 +305,7 @@ class AppEntry(Frame):
 
         labelframe = LabelFrame(self.masterframe, text="Total")
 
-        Label(labelframe, text=self.totalprice).grid(row=0)
+        Label(labelframe, text="{:0.2f}".format(self.totalprice)).grid(row=0)
 
         labelframe.grid(row=1, column=0, padx=10, sticky="w")
 
