@@ -1,4 +1,4 @@
-__VERSION__ = 1.0
+__VERSION__ = 1.1
 
 
 from tkinter import *
@@ -6,7 +6,24 @@ from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
 from simplecrypt import encrypt, decrypt
-import datetime, os,getpass
+import datetime, os, getpass, shutil
+
+'''
+Creates a Snapshot backup of the encrypted file in the "Snapshots" folder
+This is so we can have incremental backups in case there is a file loss
+or file corruption.
+'''
+def backup(file):
+    date = str(datetime.datetime.today()).replace(":", ".").split(" ")
+    if not os.path.exists("Snapshot"):
+        os.mkdir("Snapshot")
+    if not os.path.exists("Snapshot/{}".format(date[0])):
+        os.mkdir("Snapshot/{}".format(date[0]))
+    date = "__{} {}.json".format(date[0], date[1][:8])
+    path = "Snapshot/{}/{}".format(str(datetime.date.today()), file.split('.')[0] + date)
+    open(path, "a").close()
+    shutil.copy(file, path)
+
 
 '''
 Read the encrypted data by decrypting the data
@@ -54,8 +71,10 @@ global db, newsdb
 FILES = ["people.json", "newspaper.json"]
 password = getpass.getpass("Password: ")
 
+
 for file in FILES:
     if os.path.exists(file):
+        backup(file)
         try:
             readencrypted(password, file)
         except:
