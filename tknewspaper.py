@@ -6,7 +6,8 @@ from tkinter.ttk import *
 from tkinter import messagebox
 from tinydb import *
 from simplecrypt import encrypt, decrypt
-import datetime, os, getpass, shutil
+import datetime, os, getpass, shutil, online_handle
+
 
 '''
 Creates a Snapshot backup of the encrypted file in the "Snapshots" folder
@@ -31,7 +32,6 @@ then writing the plain text onto the original file
 this will let TinyDB to read the files
 '''
 def readencrypted(password, filename):
-    print("Unlocking files")
     with open(filename, 'rb') as input:
         global plaintext
         ciphertext = input.read()
@@ -46,13 +46,14 @@ after which we store the encrypted text back in to the file
 This will keep the data secured when not in use.
 '''
 def writeencrypted(password, filename):
-    print("Locking files")
     global plaintext
     with open(filename, 'r') as text:
         plaintext = text.read()
     with open(filename, 'wb') as output:
         ciphertext = encrypt(password, plaintext)
         output.write(ciphertext)
+    online_handle.upload(filename)
+
 
 '''
 If the root (Window) is closing prompts the user
@@ -73,6 +74,7 @@ password = getpass.getpass("Password: ")
 
 
 for file in FILES:
+    online_handle.dowload(file)
     if os.path.exists(file):
         backup(file)
         try:
