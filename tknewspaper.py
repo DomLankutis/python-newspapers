@@ -423,28 +423,23 @@ class AppEntry(Frame):
     '''
     def calculateprice(self):
         try:
-            credit = False
             totalprice = 0
             diff = self.getdate(outscope=True, key="PaidTill") - datetime.datetime.today()
+            credit = diff.days >= 0
             data = db.get(doc_id=self.getid(self.combobox, database=db))
             newspapernames = self.readdata("Name", False, database=newsdb)
 
-            if diff.days >= 0:
-                credit = True
+            for i in range(0, int(diff.days)):
+                if i != 0 and i % 6 == 0:
+                    try:
+                        self.totalprice += self.deliverycharge()
+                    except:
+                        print("Error getting 'delivery charge'")
 
             diff = abs(diff.days)
             for newsname in newspapernames:
                 for i in range(diff + 1):
                     dayname = self.daynames[(i + datetime.datetime.today().weekday()) % 7]
-
-                    if i == 0:
-                        try:
-                            totalprice += self.deliverycharge()
-                        except: pass
-                    elif dayname == "Monday":
-                        try:
-                            totalprice += self.deliverycharge()
-                        except: pass
 
                     try:
                         if data[newsname.lower() + dayname]:
@@ -460,7 +455,6 @@ class AppEntry(Frame):
                 self.totalprice = totalprice
             else:
                 self.totalprice = -totalprice
-
         except Exception:
             self.totalprice = 0
 
