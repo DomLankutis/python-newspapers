@@ -1,4 +1,4 @@
-__VERSION__ = 1.2
+__VERSION__ = "1.3"
 
 
 from tkinter import *
@@ -106,16 +106,18 @@ class AppEntry(Frame):
         self.paydays = IntVar()
         self.paydays.set(0)
         self.totalprice = 0.0
+        self.weektotalprice = 0.0
         self.datedifference = 0.0
         self.newsname = ""
         self.comboname = ""
+        self.addresssearch = []
         self.daynames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         self.weeklist = []
         for i in range(7):
             self.weeklist.append(BooleanVar())
         self.masterframe = Frame(self.master)
         self.createwidgets()
-        root.focus_set()
+        root.focus_force()
 
     '''
     Clears all the values in the newspaper section Entries
@@ -323,6 +325,8 @@ class AppEntry(Frame):
         Label(labelframe, text="Address").grid(row=1)
 
         self.combobox = Combobox(labelframe, values=self.readdata("Address", False))
+        self.combobox.bind("<Key>", self.getaddress)
+        self.combobox.bind("<BackSpace>", self.addressremove)
         self.combobox.bind("<<ComboboxSelected>>", self.updatedata)
         self.combobox.set(self.comboname)
         self.combobox.grid(row=1, column=1, sticky="w")
@@ -330,17 +334,16 @@ class AppEntry(Frame):
         labelframe.grid(row=0, padx=5, ipadx=2, ipady=2)
 
         labelframe = LabelFrame(self.masterframe, text="Total")
-
         Label(labelframe, text="{:0.2f}".format(self.totalprice)).grid(row=0)
-
         labelframe.grid(row=1, column=0, padx=10, sticky="w")
 
+        labelframe = LabelFrame(self.masterframe, text="Week price")
+        Label(labelframe, text="{:0.2f}".format(self.weektotalprice)).grid(row=0)
+        labelframe.grid(row=2, padx=10, sticky="w")
+
         labelframe = LabelFrame(self.masterframe, text="Pay Due in")
-
         Label(labelframe, text=self.datedifference).grid(row=0)
-
         labelframe.grid(row=1, column=0)
-
 
         labelframe = LabelFrame(self.masterframe, text="Buttons")
 
@@ -356,6 +359,8 @@ class AppEntry(Frame):
     '''
     def setnewsname(self, event):
         self.newsname = self.newscombo.get()
+        if self.combobox.get() != "":
+            self.updatedata(None)
 
     '''
     Gets the ID of the selected field by using regex and then
@@ -388,28 +393,50 @@ class AppEntry(Frame):
         except KeyError:
             self.weekreset()
 
+    def addressremove(self, event):
+        self.combobox.set("")
+        self.addresssearch = []
+
+    def getaddress(self, event):
+        self.addresssearch.append(event.char)
+
+        keypress = "".join(self.addresssearch)
+        possible = []
+
+        for index, value in enumerate(self.readdata("Address", False)):
+            if keypress.lower() in value.lower():
+                possible.append([index, value])
+
+        if len(possible) >= 1:
+            self.combobox['values'] = [x[1] for x in possible]
+            self.combobox.set("")
+            self.combobox.set(possible[0][1])
+        self.updatedata(None)
     '''
     Update the checkbox for the appropriate user after
     getting their id and corresponding week values
     '''
     def updatedata(self, event):
+        if event == None:
+            self.comboname = self.combobox.get()[1:]
         self.comboname = self.combobox.get()
+
         self.datedifference = str(self.getdate(outscope=True, key="PaidTill"))[:10]
         self.userdata = db.get(doc_id=self.getid(self.combobox, database=db))
 
-        self.calculateprice()
+        self.totalprice = self.calculateprice()
+        self.weektotalprice = self.calculateprice(week=True)
 
-        if self.newscombo.get() == "":
-            messagebox.showerror("Error", "No newspaper Selected")
 
-        else:
-            self.updateweeklist()
-            labelframe = LabelFrame(self.masterframe, text="Days")
-            for i in range(len(self.weeklist)):
-                Checkbutton(labelframe, text=i + 1, variable=self.weeklist[i], onvalue=True,
-                          offvalue=False).grid(row=0, column=i, sticky='nw')
-            labelframe.grid(row=0, column=1, padx=10)
-            self.datawidgets(clear=False)
+
+
+        self.updateweeklist()
+        labelframe = LabelFrame(self.masterframe, text="Days")
+        for i in range(len(self.weeklist)):
+            Checkbutton(labelframe, text=i + 1, variable=self.weeklist[i], onvalue=True,
+                      offvalue=False).grid(row=0, column=i, sticky='nw')
+        labelframe.grid(row=0, column=1, padx=10)
+        self.datawidgets(clear=False)
 
     '''
     Returns the delivery charge of the specific user.
@@ -421,42 +448,50 @@ class AppEntry(Frame):
     Calculates the Price that is either in credit or is due
     for the currently selected user.
     '''
-    def calculateprice(self):
+    def calculateprice(self, week=False):
         try:
             totalprice = 0
-            diff = self.getdate(outscope=True, key="PaidTill") - datetime.datetime.today()
-            credit = diff.days >= 0
+            if week:
+                diff = 6
+            else:
+                diff = self.getdate(outscope=True, key="PaidTill") - datetime.datetime.today()
+                diff = diff.days
+            credit = diff >= 0
             data = db.get(doc_id=self.getid(self.combobox, database=db))
             newspapernames = self.readdata("Name", False, database=newsdb)
 
-            for i in range(0, int(diff.days)):
+            for i in range(0, int(diff + 1)):
                 if i != 0 and i % 6 == 0:
                     try:
-                        self.totalprice += self.deliverycharge()
+                        totalprice += self.deliverycharge()
                     except:
                         print("Error getting 'delivery charge'")
+            diff = abs(diff)
+            if diff > 1:
+                for newsname in newspapernames:
+                    for i in range(diff + 1):
+                        dayname = self.daynames[(i + datetime.datetime.today().weekday()) % 7]
 
-            diff = abs(diff.days)
-            for newsname in newspapernames:
-                for i in range(diff + 1):
-                    dayname = self.daynames[(i + datetime.datetime.today().weekday()) % 7]
-
-                    try:
-                        if data[newsname.lower() + dayname]:
-                            if dayname == "Saturday":
-                                totalprice += float(newsdb.get(where("Name") == newsname)["Saturday Price"])
-                            elif dayname == "Sunday":
-                                totalprice += float(newsdb.get(where("Name") == newsname)["Sunday Price"])
-                            else:
-                                totalprice += float(newsdb.get(where("Name") == newsname)["Normal Price"])
-                    except Exception:
-                        pass
-            if credit:
-                self.totalprice = totalprice
+                        try:
+                            if data[newsname.lower() + dayname]:
+                                if dayname == "Saturday":
+                                    totalprice += float(newsdb.get(where("Name") == newsname)["Saturday Price"])
+                                elif dayname == "Sunday":
+                                    totalprice += float(newsdb.get(where("Name") == newsname)["Sunday Price"])
+                                else:
+                                    totalprice += float(newsdb.get(where("Name") == newsname)["Normal Price"])
+                        except Exception:
+                            pass
+                if credit:
+                    totalprice = totalprice
+                else:
+                    totalprice = -totalprice
             else:
-                self.totalprice = -totalprice
+                totalprice = 0
         except Exception:
-            self.totalprice = 0
+            totalprice = 0
+        return float(totalprice)
+
 
     '''
     Gets a date from the json file. Depending if "outscope" is false or true
